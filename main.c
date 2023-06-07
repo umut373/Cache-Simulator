@@ -2,6 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct cacheLine{
+    int valid;
+    long long tag;
+    int time;
+    char* data;
+} cacheLine;
+typedef struct cacheSet{
+    cacheLine* lines;
+    int setId;
+} cacheSet;
+
 
 typedef struct cache{
     int setSize;
@@ -10,17 +21,6 @@ typedef struct cache{
     cacheSet* sets;
 
 }cache;
-typedef struct cacheSet{
-    cacheLine* lines;
-    int setId;
-} cacheSet;
-
-typedef struct cacheLine{
-    int valid;
-    long long tag;
-    int time;
-    char* data;
-} cacheLine;
 
 
 
@@ -51,5 +51,10 @@ int main(){
     cache L1I = constructCache(0,2,3);
     cache L1D = constructCache(0,2,3);
     cache L2 = constructCache(1,2,3);
-    
+
+
+    printf("%d",0x0000fcaa % blockSize);
+    printf("%d",0x0000fcaa / blockSize*setSize);
+    printf("%d",(0x0000fcaa / blockSize) % setSize );
+
 }
