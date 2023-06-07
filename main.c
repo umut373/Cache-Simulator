@@ -8,11 +8,11 @@ typedef struct cacheLine{
     int time;
     char* data;
 } cacheLine;
+
 typedef struct cacheSet{
     cacheLine* lines;
     int setId;
 } cacheSet;
-
 
 typedef struct cache{
     int setSize;
@@ -21,8 +21,6 @@ typedef struct cache{
     cacheSet* sets;
 
 }cache;
-
-
 
 cache constructCache(int s, int b, int e){
 
@@ -43,9 +41,7 @@ cache constructCache(int s, int b, int e){
     return c;
 }
 
-
-
-
+void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 
 int main(){
     cache L1I = constructCache(0,2,3);
@@ -53,8 +49,61 @@ int main(){
     cache L2 = constructCache(1,2,3);
 
 
-    printf("%d",0x0000fcaa % blockSize);
-    printf("%d",0x0000fcaa / blockSize*setSize);
-    printf("%d",(0x0000fcaa / blockSize) % setSize );
+    // TEST CODE
+    char path[30] = "traces\\";
+    char filename[20];
+    printf("Enter file name: ");
+    scanf("%s", filename);
+    strcat(path, filename);
 
+    readTrace(path, 2, 3 ,1, 5);
+}
+
+void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
+    FILE *trace = fopen(filepath, "r"); // opean trace file
+
+    char instr = fgetc(trace);
+    while (instr != EOF) {
+        // address and size are common for every instruction
+        int address;
+        int size;
+        fscanf(trace, "%x, %d", &address, &size);
+
+        // calculate set index, block offset and tag for L1 and L2 cahce
+        int L1_setIndex = (address >> b1) & ((1 << s1) - 1);
+        int L1_blockOffset = address & ((1 << b1) - 1);
+        int L1_tag = address >> (s1 + b1);
+
+        int L2_setIndex = (address >> b2) & ((1 << s2) - 1);
+        int L2_blockOffset = address & ((1 << b2) - 1);
+        int L2_tag = address >> (s2 + b2);
+
+        switch (instr) {
+            case 'I':
+                // call func
+                break;
+
+            case 'L':
+                // call func
+                break;
+
+            case 'S':
+                // read data value for S instr
+                int data;
+                fscanf(trace, "%x", &data);
+
+                // call func
+                break;
+
+            case 'M':
+                // read data value for M instr
+                fscanf(trace, "%x", &data);
+    
+                // call func
+                break;
+        }
+        // read next instruction
+        fgetc(trace); // skip '\n' character
+        instr = fgetc(trace);
+    }
 }
