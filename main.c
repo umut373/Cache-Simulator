@@ -235,6 +235,7 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
                 c->sets[setIndex].lines[i].data[blockOffset+j] = data[j];
             }
             break;
+
         }
     }
     return hit;
