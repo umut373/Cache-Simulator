@@ -6,7 +6,7 @@ typedef struct cacheLine{
     int valid;
     long long tag;
     int time;
-    char* data;
+    unsigned char* data;
 } cacheLine;
 
 typedef struct cacheSet{
@@ -91,7 +91,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int L2_tag = address >> (s2 + b2);
 
         switch (instr) {
-            case 'I':
+            case 'D':
                 
                 if(load(&L1D,L1_setIndex,L1_tag,L1_blockOffset,size,time,ramData)){
                     printf("L1D hit,");
@@ -112,8 +112,24 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 
                 break;
 
-            case 'L':
+            case 'I':
                 
+                if(load(&L1I,L1_setIndex,L1_tag,L1_blockOffset,size,time,ramData)){
+                    printf("L1I hit,");
+                }
+                else{
+                    printf("L1I miss,");
+                    if(load(&L2,L2_setIndex,L2_tag,L2_blockOffset,size,time,ramData)){
+                        printf("L2 hit\n");
+                        printf("Place in L1I set %d\n",L1_setIndex);
+                    }
+                    else{
+                        printf("L2 miss\n");
+                        printf("Place in L2 set %d,L1I set %d\n",L2_setIndex,L1_setIndex);
+                    }
+                    
+                }
+
                 break;
 
             case 'S':
@@ -176,8 +192,10 @@ int load(cache* c, int setIndex, int tag, int blockOffset, int size, int time, u
     c->sets[setIndex].lines[lineIndex].time = time;
     for (int i = 0; i < c->blockSize; i++)
     {
-        c->sets[setIndex].lines[lineIndex].data[i] = ramData[blockOffset][i];
+        c->sets[setIndex].lines[lineIndex].data[i] = ramData[index][i];
+        //printf("%x",c->sets[setIndex].lines[lineIndex].data[i]);
     }
+    //printf("\n");
     return 0;
 
 }
