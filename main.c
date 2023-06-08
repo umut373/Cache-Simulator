@@ -49,6 +49,8 @@ unsigned char **ramData;
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
+int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char* data);
+// void storeRam(int blockOffset, int ramIndex, int size, unsigned char* data);
 
 int main(){
     L1I = constructCache("L1I",2,3,2);
@@ -72,7 +74,7 @@ int main(){
 
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
-    FILE *trace = fopen(filepath, "r"); // opean trace file
+    FILE *trace = fopen(filepath, "r"); // open trace file
 
     char instr = fgetc(trace);
     while (instr != EOF) {
@@ -94,8 +96,8 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int L2_tag = address >> (s2 + b2);
 
         // for instruction S and M
-        char* data[size*2 + 1];
-        char* dataSplit[size];
+        unsigned char* data[size*2 + 1];
+        unsigned char* dataSplit[size];
 
         switch (instr) {
             case 'I':
@@ -136,17 +138,19 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 // read data value and split it into bytes
                 fscanf(trace, "%s", &data);
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(char) * 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
                     strncpy(dataSplit[i], data + i*2, 2);
                 }
-                // call func
+                // storeRam(L2_blockOffset, ramIndex, size, data);
+                storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, data);
+                storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, data);
                 break;
 
             case 'M':
                 // read data value and split it into bytes
                 fscanf(trace, "%s", &data);
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(char) * 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
                     strncpy(dataSplit[i], data + i*2, 2);
                 }
                 break;
@@ -212,4 +216,26 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
     }
     //printf("\n");
     return 0;
+}
+
+/* SORUNLU
+ * void storeRam(int blockOffset, int ramIndex, int size, unsigned char* data) {
+    for (int i = 0; i < size; i++){
+        ramData[ramIndex][blockOffset+i] = data[i];
+    }
+}*/
+int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char* data){
+    //Check for hit
+    int hit = 0;
+    for (int i = 0; i < c->associativity; i++){
+        if(c->sets[setIndex].lines[i].valid == 1 && c->sets[setIndex].lines[i].tag == tag){
+            hit = 1;
+            //Hit, print data to ram
+            for (int j = 0; j < size; j++){
+                c->sets[setIndex].lines[i].data[blockOffset+j] = data[j];
+            }
+            break;
+        }
+    }
+    return hit;
 }
