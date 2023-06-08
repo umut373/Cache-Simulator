@@ -42,6 +42,7 @@ cache constructCache(int s, int b, int e){
 }
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
+unsigned char** readRam();
 
 int main(){
     cache L1I = constructCache(0,2,3);
@@ -57,6 +58,8 @@ int main(){
     strcat(path, filename);
 
     readTrace(path, 2, 3 ,1, 5);
+    unsigned char** ramData = readRam();
+    return 0;
 }
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
@@ -106,4 +109,15 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         fgetc(trace); // skip '\n' character
         instr = fgetc(trace);
     }
+}
+
+unsigned char** readRam() {
+    FILE *ram = fopen("RAM.dat", "rb"); // open ram file
+
+    unsigned char **ramData = malloc(sizeof(unsigned char *) * 65536);
+    for (int i = 0; i < 65536; i++) {
+        ramData[i] = malloc(sizeof(unsigned char) * 8);
+        fread(ramData[i], sizeof(unsigned char), 8, ram);
+    }
+    return ramData;
 }
