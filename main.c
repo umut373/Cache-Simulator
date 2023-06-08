@@ -15,6 +15,7 @@ typedef struct cacheSet{
 } cacheSet;
 
 typedef struct cache{
+    char* name;
     int setSize;
     int blockSize;
     int associativity;
@@ -22,9 +23,14 @@ typedef struct cache{
 
 }cache;
 
-cache constructCache(int s, int b, int e){
+cache L1I, L1D, L2;
+unsigned char **ramData;
+int load(cache* c, int setIndex, int tag, int blockOffset, int size, int time, unsigned char** ramData);
 
-    cache c = {1<<s,1<<b,1<<e,NULL};
+int time = 0;
+cache constructCache(char* name,int s, int b, int e){
+
+    cache c = {name,1<<s,1<<b,1<<e,NULL};
     c.sets = malloc(sizeof(cacheSet)*c.setSize);
     for (int i = 0; i < c.setSize; i++)
     {
@@ -45,22 +51,25 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 
 int main(){
-    cache L1I = constructCache(0,2,3);
-    cache L1D = constructCache(0,2,3);
-    cache L2 = constructCache(1,2,3);
+    L1I = constructCache("L1I",2,3,2);
+    L1D = constructCache("L1D",2,3,2);
+    L2 = constructCache("L2",1,5,2);
 
 
     // TEST CODE
     char path[30] = "traces\\";
     char filename[20];
+    
     printf("Enter file name: ");
     scanf("%s", filename);
     strcat(path, filename);
+    ramData = readRam();
 
     readTrace(path, 2, 3 ,1, 5);
-    unsigned char** ramData = readRam();
+    
     return 0;
 }
+
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
     FILE *trace = fopen(filepath, "r"); // opean trace file
@@ -83,11 +92,28 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
 
         switch (instr) {
             case 'I':
-                // call func
+                
+                if(load(&L1D,L1_setIndex,L1_tag,L1_blockOffset,size,time,ramData)){
+                    printf("L1D hit,");
+                }
+                else{
+                    printf("L1D miss,");
+                    if(load(&L2,L2_setIndex,L2_tag,L2_blockOffset,size,time,ramData)){
+                        printf("L2 hit\n");
+                        printf("Place in L1D set %d\n",L1_setIndex);
+                    }
+                    else{
+                        printf("L2 miss\n");
+                        printf("Place in L2 set %d,L1D set %d\n",L2_setIndex,L1_setIndex);
+                    }
+                    
+                }
+                
+                
                 break;
 
             case 'L':
-                // call func
+                
                 break;
 
             case 'S':
@@ -105,19 +131,75 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 // call func
                 break;
         }
+        time++;
         // read next instruction
         fgetc(trace); // skip '\n' character
         instr = fgetc(trace);
     }
 }
 
+int load(cache* c, int setIndex, int tag, int blockOffset, int size, int time, unsigned char** ramData){
+    
+    //Check for hit
+    for (int i = 0; i < c->associativity; i++)
+    {
+        if(c->sets[setIndex].lines[i].valid == 1 && c->sets[setIndex].lines[i].tag == tag){
+            //Hit
+            c->sets[setIndex].lines[i].time = time;
+            return 1;
+        }
+    }
+
+    int lineIndex = -1;
+
+
+    //Find the first empty line
+    for (int i = 0; i < c->associativity; i++)
+    {
+        if(c->sets[setIndex].lines[i].valid == 0){
+            lineIndex = i;
+            break;
+        }
+    }
+    if(lineIndex == -1){
+        int minTime = c->sets[setIndex].lines[0].time;
+        for (int i = 0; i < c->associativity; i++)
+        {
+            if(c->sets[setIndex].lines[i].time < minTime){
+                minTime = c->sets[setIndex].lines[i].time;
+                lineIndex = i;
+            }
+        }
+    }
+    c->sets[setIndex].lines[lineIndex].valid = 1;
+    c->sets[setIndex].lines[lineIndex].tag = tag;
+    c->sets[setIndex].lines[lineIndex].time = time;
+    for (int i = 0; i < c->blockSize; i++)
+    {
+        c->sets[setIndex].lines[lineIndex].data[i] = ramData[blockOffset][i];
+    }
+    return 0;
+
+}
+
+
+
+
+
+
+
 unsigned char** readRam() {
     FILE *ram = fopen("RAM.dat", "rb"); // open ram file
 
-    unsigned char **ramData = malloc(sizeof(unsigned char *) * 65536);
-    for (int i = 0; i < 65536; i++) {
+    fseek(ram, 0, SEEK_END);
+    long ramSize = ftell(ram);
+    rewind(ram);
+
+    unsigned char **ramData = malloc(sizeof(unsigned char) * ramSize);
+    for (int i = 0; i < ramSize/8; i++) {
         ramData[i] = malloc(sizeof(unsigned char) * 8);
         fread(ramData[i], sizeof(unsigned char), 8, ram);
+        
     }
     return ramData;
 }
