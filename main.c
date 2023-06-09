@@ -23,17 +23,17 @@ typedef struct cache {
 
 } cache;
 
-cache constructCache(char* name,int s, int b, int e){
-    cache c = {name,1<<s,1<<b,1<<e,NULL};
-    c.sets = malloc(sizeof(cacheSet)*c.setSize);
+cache constructCache(char* name, int s, int b, int e) {
+    cache c = {name, 1<<s, 1<<b, 1<<e, NULL};
+    c.sets = malloc(sizeof(cacheSet) * c.setSize);
     for (int i = 0; i < c.setSize; i++) {
         c.sets[i].setId = i;
-        c.sets[i].lines = malloc(sizeof(cacheLine)*c.associativity);
+        c.sets[i].lines = malloc(sizeof(cacheLine) * c.associativity);
         for (int j = 0; j < c.associativity; j++) {
             c.sets[i].lines[j].valid = 0;
             c.sets[i].lines[j].tag = 0;
             c.sets[i].lines[j].time = 0;
-            c.sets[i].lines[j].data = malloc(sizeof(char)*c.blockSize);
+            c.sets[i].lines[j].data = malloc(sizeof(char) * c.blockSize);
         }
     }
     return c;
@@ -41,7 +41,7 @@ cache constructCache(char* name,int s, int b, int e){
 
 int time = 0;
 cache L1I, L1D, L2;
-unsigned char **ramData;
+unsigned char** ramData;
 
 FILE *output;
 
@@ -164,11 +164,6 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     dataSplit[i][2] = '\0';
                 }
 
-                printf("\nbefore store\n");
-                for (int i = 0; i < 8; i++) {
-                    printf("%x", ramData[ramIndex][i]);
-                }
-
                 storeRam(ramIndex, size, dataSplit);
 
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
@@ -249,7 +244,7 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
             break;
         }
     }
-    if (lineIndex == -1){
+    if (lineIndex == -1) {
         int minTime = c->sets[setIndex].lines[0].time;
         for (int i = 0; i < c->associativity; i++) {
             if(c->sets[setIndex].lines[i].time < minTime){
@@ -278,15 +273,14 @@ void storeRam(int ramIndex, int size, unsigned char** data) {
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data) {
     //Check for hit
     int hit = 0;
-    for (int i = 0; i < c->associativity; i++){
+    for (int i = 0; i < c->associativity; i++) {
         if(c->sets[setIndex].lines[i].valid == 1 && c->sets[setIndex].lines[i].tag == tag){
             hit = 1;
             //Hit, print data to ram
-            for (int j = 0; j < size; j++){
+            for (int j = 0; j < size; j++) {
                 c->sets[setIndex].lines[i].data[blockOffset+j] = strtol(data[j], NULL, 16);
             }
             break;
-
         }
     }
     return hit;
