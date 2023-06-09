@@ -4,3 +4,4 @@
 CMakeLists.txt
 cmake-build-debug
 output.txt
+RAM_output.dat
