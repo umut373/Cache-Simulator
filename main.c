@@ -42,7 +42,7 @@ cache constructCache(char* name, int s, int b, int e) {
 int time = 0;
 cache L1I, L1D, L2;
 unsigned char** ramData;
-
+long ramSize;
 FILE *output;
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
@@ -50,6 +50,8 @@ unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
 void storeRam(int ramIndex, int size, unsigned char** data);
+void printCache(cache* c);
+void printRam();
 
 int main(){
     output = fopen("output.txt", "w");
@@ -68,12 +70,16 @@ int main(){
     strcat(path, filename);
     ramData = readRam();
 
+
+
     readTrace(path, 2, 3 ,1, 5);
+    printCache(&L1I);
     
+    printRam();
     fclose(output);
+    
     return 0;
 }
-
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
     FILE *trace = fopen(filepath, "r"); // open trace file
@@ -215,7 +221,7 @@ unsigned char** readRam() {
     FILE *ram = fopen("RAM.dat", "rb"); // open ram file
 
     fseek(ram, 0, SEEK_END);
-    long ramSize = ftell(ram);
+    ramSize = ftell(ram);
     rewind(ram);
 
     unsigned char **ramData = malloc(sizeof(unsigned char) * ramSize);
@@ -284,4 +290,38 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
         }
     }
     return hit;
+}
+
+void printCache(cache* c) {
+    //Iterate through sets
+    for (int i = 0; i < c->setSize; i++) {
+        //Set
+        printf("Set %d\n", i);
+        cacheSet* set = &c->sets[i];
+        //Iterating through lines
+        for (int j = 0; j < c->associativity; j++) {
+            //Line
+            cacheLine* line = &set->lines[j];
+            printf("Line %d: ", j);
+
+            //Line attributes
+            printf("Valid: %d, ", line->valid);
+            printf("Tag: %d, ", line->tag);
+            printf("Time: %d, ", line->time);
+            printf("Data: ");
+            for (int k = 0; k < c->blockSize; k++) {
+                printf("%02x", line->data[k]);
+            }
+            printf("\n");
+        }
+    }
+}
+
+void printRam() {
+    FILE *ram = fopen("RAM_output.dat", "wb"); // open ram file
+
+    for (int i = 0; i < ramSize; i++) {
+        fwrite(ramData[i], sizeof(unsigned char), 8, ram);
+    }
+    fclose(ram);
 }
