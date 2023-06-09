@@ -230,6 +230,7 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
         ramData[ramIndex][blockOffset+i] = data[i];
     }
 }*/
+
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char* data){
     //Check for hit
     int hit = 0;
@@ -238,7 +239,7 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
             hit = 1;
             //Hit, print data to ram
             for (int j = 0; j < size; j++){
-                c->sets[setIndex].lines[i].data[blockOffset+j] = data[j];
+                c->sets[setIndex].lines[i].data[blockOffset+j] = strtol(data[j], NULL, 16);
             }
             break;
 
