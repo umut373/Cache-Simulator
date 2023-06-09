@@ -96,7 +96,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int L2_tag = address >> (s2 + b2);
 
         // for instruction S and M
-        unsigned char* data[size*2 + 1];
+        char* data;
         unsigned char* dataSplit[size];
 
         switch (instr) {
@@ -135,11 +135,14 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 break;
 
             case 'S':
-                // read data value and split it into bytes
-                fscanf(trace, "%s", &data);
+                fgets(data, 2, trace); // skip ', '
+                fscanf(trace, "%s", data);
+                
+                // split data value into bytes
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
-                    strncpy(dataSplit[i], data + i*2, 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 3);
+                    strncpy(dataSplit[i], &data[i*2], 2);
+                    dataSplit[i][2] = '\0';
                 }
                 // storeRam(L2_blockOffset, ramIndex, size, data);
                 storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, data);
@@ -147,11 +150,14 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 break;
 
             case 'M':
-                // read data value and split it into bytes
-                fscanf(trace, "%s", &data);
+                fgets(data, 2, trace); // skip ', '
+                fscanf(trace, "%s", data);
+
+                // split data value into bytes
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
-                    strncpy(dataSplit[i], data + i*2, 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 3);
+                    strncpy(dataSplit[i], &data[i*2], 2);
+                    dataSplit[i][2] = '\0';
                 }
                 break;
         }
