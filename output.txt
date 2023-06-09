@@ -1,9 +1,27 @@
 I 0000fca0, 6
 L1I miss, L2 miss
 Place in L2 set 1, L1I set 0
+
 M 000996f0, 4, ec29cdba
+I 0000fca0, 6
+L1I hit, L2 hit
+
+S 0000fca0, 1, ,
+L1D miss, L2 hit
+Store in L2, RAM
+
+M 0000fca0, 1, ab
+S 0000fca0, 3, ,
+L1D miss, L2 hit
+Store in L2, RAM
+
+M 0000fca0, 3, 15ac
 M 0003b180, 5, 467cc254f8
-I 0000df70, 0
-L1I miss, L2 miss
-Place in L2 set 1, L1I set 2
+D 0000df70, 0
+L1D miss, L2 miss
+Place in L2 set 1, L1D set 2
+
+D 0000df70, 2
+L1D hit, L2 hit
+
 M 000dfa30, 6, 63339fc99a66
