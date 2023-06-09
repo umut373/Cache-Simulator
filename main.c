@@ -31,13 +31,17 @@ typedef struct cache {
 
 } cache;
 
+// construct a cache with given parameters
 cache constructCache(char* name, int s, int b, int e) {
     cache c = {name, 1<<s, 1<<b, 1<<e, NULL};
+    // allocate memory for sets
     c.sets = malloc(sizeof(cacheSet) * c.setSize);
     for (int i = 0; i < c.setSize; i++) {
         c.sets[i].setId = i;
+        // allocate memory for lines
         c.sets[i].lines = malloc(sizeof(cacheLine) * c.associativity);
         for (int j = 0; j < c.associativity; j++) {
+            // initialize values to zero
             c.sets[i].lines[j].valid = 0;
             c.sets[i].lines[j].tag = 0;
             c.sets[i].lines[j].time = 0;
@@ -47,6 +51,7 @@ cache constructCache(char* name, int s, int b, int e) {
     return c;
 }
 
+// global variables
 int time = 0;
 cache L1I, L1D, L2;
 unsigned char** ramData;
@@ -55,33 +60,33 @@ FILE *output;
 int L1s, L1E, L1b, L2s, L2E, L2b;
 char* tracefile;
 
-
 // hit - miss - evacuation
 int L1D_counter[3] = {0, 0, 0};
 int L1I_counter[3] = {0, 0, 0};
 int L2_counter[3] = {0, 0, 0};
 
+void takeArguments(int argc, char *argv[]);
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
-void storeRam(int ramIndex,int ramOffset ,int size, unsigned char** data);
+void storeRam(int ramIndex, int ramOffset, int size, unsigned char** data);
 void printOutput();
 void printRam();
-void takeArguments(int argc, char *argv[]);
 
-int main(int argc, char *argv[]){
-    takeArguments(argc, argv);
+int main(int argc, char *argv[]) {
+    // take arguments from command line
+    //takeArguments(argc, argv);
 
     output = fopen("output.txt", "w");
 
-    L1I = constructCache("L1I",L1s, L1b, L1E);
-    L1D = constructCache("L1D", L1s, L1b, L1E);
-    L2 = constructCache("L2", L2s, L2b, L2E);
+    // construct caches
+    L1I = constructCache("L1I", 2, 3, 2);
+    L1D = constructCache("L1D", 2, 3, 2);
+    L2 = constructCache("L2", 1, 5, 2);
 
     ramData = readRam();
-
-    readTrace(tracefile, L1s, L1b, L2s, L2b);
+    readTrace("traces/test_small.trace", 2, 3, 1, 5);
 
     printRam();
     fclose(output);
@@ -211,7 +216,6 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     L1D_counter[1]++;
                     fprintf(output, "\tPlace in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
                 }
-
                 break;
 
             case 'S':
@@ -234,7 +238,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     dataSplit[i][2] = '\0';
                 }
 
-                storeRam(ramIndex,ramOffset, size, dataSplit);
+                storeRam(ramIndex, ramOffset, size, dataSplit);
 
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
@@ -256,7 +260,8 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     // L2 hit
                     L2_counter[0]++;
                     fprintf(output, "L2, ");
-                } else {
+                } 
+                else {
                     // L2 miss
                     L2_counter[1]++;
                 }
@@ -314,7 +319,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
-                storeRam(ramIndex,ramOffset, size, dataSplit);
+                storeRam(ramIndex, ramOffset, size, dataSplit);
 
                 if (L1State && L2State) {
                     // L1D hit L2 hit
@@ -348,11 +353,14 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
 unsigned char** readRam() {
     FILE *ram = fopen("RAM.dat", "rb"); // open ram file
 
+    // get ram size
     fseek(ram, 0, SEEK_END);
     ramSize = ftell(ram);
     rewind(ram);
 
+    // create tow-dim array for ram data
     unsigned char **ramData = malloc(sizeof(unsigned char) * ramSize);
+    // fill ram data
     for (int i = 0; i < ramSize/8; i++) {
         ramData[i] = malloc(sizeof(unsigned char) * 8);
         fread(ramData[i], sizeof(unsigned char), 8, ram);
@@ -414,9 +422,13 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
 }
 
 //Store data to ram
-void storeRam(int ramIndex,int ramOffset, int size, unsigned char** data) {
-    for (int i = 0; i < size; i++){
-        ramData[ramIndex][i+ramOffset] = strtol(data[i], NULL, 16);
+void storeRam(int ramIndex, int ramOffset, int size, unsigned char** data) {
+    for (int i = 0; i < size; i++) {
+        if (ramOffset+i >= 8) {
+            ramIndex++;
+            ramOffset = 0 - i;
+        }
+        ramData[ramIndex][ramOffset+i] = strtol(data[i], NULL, 16);
     }
 }
 
@@ -437,6 +449,7 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
 }
 
 void printOutput() {
+    // print hit - miss - eviction values for each cache
     printf("\t\tL1I-hits:%d ", L1I_counter[0]);
     printf("L1I-misses:%d ", L1I_counter[1]);
     printf("L1I-evictions:%d\n", L1I_counter[2]);
@@ -449,6 +462,7 @@ void printOutput() {
 
     FILE* output = fopen("output.txt", "r");
 
+    // read output file and print it to stdout
     char c;
     c = getc(output);
     while(c != EOF) {
@@ -458,7 +472,7 @@ void printOutput() {
     fclose(output);
 }
 
-
+// print updated ram to binary file
 void printRam() {
     FILE *ram = fopen("RAM_output.dat", "wb"); // open ram file
 
