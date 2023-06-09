@@ -367,6 +367,15 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
                 lineIndex = i;
             }
         }
+        if (strcmp(c->name, "L1D")==0){
+            L1D_counter[2]++;
+        }
+        else if (strcmp(c->name, "L1I")==0){
+            L1I_counter[2]++;
+        }
+        else if (strcmp(c->name, "L2")==0){
+            L2_counter[2]++;
+        }
     }
 
     c->sets[setIndex].lines[lineIndex].valid = 1;
