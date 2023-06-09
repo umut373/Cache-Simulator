@@ -50,6 +50,7 @@ unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
 void storeRam(int ramIndex, int size, unsigned char** data);
+void printCache(cache* c);
 
 int main(){
     output = fopen("output.txt", "w");
@@ -69,6 +70,7 @@ int main(){
     ramData = readRam();
 
     readTrace(path, 2, 3 ,1, 5);
+    printCache(&L1I);
     
     fclose(output);
     return 0;
@@ -290,4 +292,29 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
         }
     }
     return hit;
+}
+
+void printCache(cache* c) {
+    //Iterate through sets
+    for (int i = 0; i < c->setSize; i++) {
+        //Set
+        printf("Set %d\n", i);
+        cacheSet* set = &c->sets[i];
+        //Iterating through lines
+        for (int j = 0; j < c->associativity; j++) {
+            //Line
+            cacheLine* line = &set->lines[j];
+            printf("Line %d: ", j);
+
+            //Line attributes
+            printf("Valid: %d, ", line->valid);
+            printf("Tag: %d, ", line->tag);
+            printf("Time: %d, ", line->time);
+            printf("Data: ");
+            for (int k = 0; k < c->blockSize; k++) {
+                printf("%x", line->data[k]);
+            }
+            printf("\n");
+        }
+    }
 }
