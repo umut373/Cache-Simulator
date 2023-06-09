@@ -98,7 +98,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int L2_tag = address >> (s2 + b2);
 
         // for instruction S and M
-        char* data;
+        char data[size*2 + 1];
         unsigned char* dataSplit[size];
 
         switch (instr) {
@@ -110,19 +110,17 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 int L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
-                if (L1State && L2State)
-                {
+                if (L1State && L2State) {
                     /* code */
-                }else if(L1State && !L2State)
-                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
+                }
+                else if(L1State && !L2State)
+                    fprintf(output, "Place in L2 set %d\n", L2_setIndex);
                 else if(!L1State && L2State)
-                     fprintf(output, "Place in L1I set %d\n", L1_setIndex);
+                    fprintf(output, "Place in L1I set %d\n", L1_setIndex);
                 else
-                     fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
+                    fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
                 
-                
-                      fprintf(output,"\n");
-                
+                fprintf(output,"\n");
                 break;
 
             case 'D':
@@ -133,23 +131,30 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
-                if (L1State && L2State)
-                {
+                if (L1State && L2State) {
                     /* code */
-                }else if(L1State && !L2State)
-                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
+                }
+                else if(L1State && !L2State)
+                    fprintf(output, "Place in L2 set %d\n", L2_setIndex);
                 else if(!L1State && L2State)
-                     fprintf(output, "Place in L1D set %d\n", L1_setIndex);
+                    fprintf(output, "Place in L1D set %d\n", L1_setIndex);
                 else
-                     fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
+                    fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex),
 
-                     fprintf(output,"\n");
+                fprintf(output,"\n");
                 break;
 
             case 'S':
-                fgets(data, 2, trace); // skip ', '
-                fscanf(trace, "%s", data);
-
+                // skip ',' and ' '
+                for (int i = 0; i < size*2; i++) {
+                    char c = fgetc(trace);
+                    if (c != ',' && c != ' ')
+                        data[i] = c;
+                    else 
+                        i--;
+                }
+                data[size*2] = '\0';
+                
                 fprintf(output, "S %08x, %d, %s\n", address, size, data);
                 
                 // split data value into bytes
@@ -173,11 +178,18 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     fprintf(output,"L2, ");
                 
                 fprintf(output,"RAM\n\n");
-                
+            break;    
 
             case 'M':
-                fgets(data, 2, trace); // skip ', '
-                fscanf(trace, "%s", data);
+                // skip ',' and ' '
+                for (int i = 0; i < size*2; i++) {
+                    char c = fgetc(trace);
+                    if (c != ',' && c != ' ')
+                        data[i] = c;
+                    else 
+                        i--;
+                }
+                data[size*2] = '\0';
 
                 fprintf(output, "M %08x, %d, %s\n", address, size, data);
 
@@ -190,7 +202,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 break;
         }
         // read next instruction
-        fgetc(trace); // skip '\n' character
+        fgetc(trace);
         instr = fgetc(trace);
 
         time++;
