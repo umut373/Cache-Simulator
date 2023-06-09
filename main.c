@@ -49,7 +49,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
-// void storeRam(int blockOffset, int ramIndex, int size, unsigned char** data);
+void storeRam(int ramIndex, int size, unsigned char** data);
 
 int main(){
     output = fopen("output.txt", "w");
@@ -105,9 +105,9 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
             case 'I':
                 fprintf(output, "I %08x, %d\n", address, size);
                     
-                int L1State=load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData);
+                int L1State = load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData);
                 L1State ? fprintf(output, "L1I hit, ") : fprintf(output, "L1I miss, ");
-                int L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
+                int L2State = load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
                 if (L1State && L2State) {
@@ -126,9 +126,9 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
             case 'D':
                 fprintf(output, "D %08x, %d\n", address, size);
 
-                L1State=load(&L1D, L1_setIndex, L1_tag, ramIndex, ramData);
+                L1State = load(&L1D, L1_setIndex, L1_tag, ramIndex, ramData);
                 L1State ? fprintf(output, "L1D hit, ") : fprintf(output, "L1D miss, ");
-                L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
+                L2State = load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
                 if (L1State && L2State) {
@@ -163,7 +163,14 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     strncpy(dataSplit[i], &data[i*2], 2);
                     dataSplit[i][2] = '\0';
                 }
-                // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
+
+                printf("\nbefore store\n");
+                for (int i = 0; i < 8; i++) {
+                    printf("%x", ramData[ramIndex][i]);
+                }
+
+                storeRam(ramIndex, size, dataSplit);
+
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
 
@@ -258,20 +265,17 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
     
     for (int i = 0; i < c->blockSize; i++) {
         c->sets[setIndex].lines[lineIndex].data[i] = ramData[ramIndex][i];
-        //printf("%x",c->sets[setIndex].lines[lineIndex].data[i]);
     }
-    //printf("\n");
     return 0;
 }
 
-/* SORUNLU
- * void storeRam(int blockOffset, int ramIndex, int size, unsigned char** data) {
+void storeRam(int ramIndex, int size, unsigned char** data) {
     for (int i = 0; i < size; i++){
-        ramData[ramIndex][blockOffset+i] = strtol(data[j], NULL, 16);
+        ramData[ramIndex][i] = strtol(data[i], NULL, 16);
     }
-}*/
+}
 
-int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data){
+int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data) {
     //Check for hit
     int hit = 0;
     for (int i = 0; i < c->associativity; i++){
