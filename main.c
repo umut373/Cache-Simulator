@@ -1,3 +1,11 @@
+/*
+    CSE2138 Systems Programming Project 3 - Bonus
+    Umut Özil - 150121019
+    Mustafa Emir Uyar - 150120007
+    Burak Karayağlı - 150121824
+    Ege Keklikçi - 150121029
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,9 +65,8 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
-void storeRam(int ramIndex, int size, unsigned char** data);
+void storeRam(int ramIndex,int ramOffset ,int size, unsigned char** data);
 void printOutput();
-void printCache(cache* c);
 void printRam();
 void takeArguments(int argc, char *argv[]);
 
@@ -72,16 +79,9 @@ int main(int argc, char *argv[]){
     L1D = constructCache("L1D", L1s, L1b, L1E);
     L2 = constructCache("L2", L2s, L2b, L2E);
 
-    char path[80] = "traces\\";
-    char filename[50];
-    
-    strcat(path, tracefile);
     ramData = readRam();
 
-    readTrace(path, L1s, L1b, L2s, L2b);
-    //printCache(&L1I);
-    //printCache(&L1D);
-    //printCache(&L2);
+    readTrace(tracefile, L1s, L1b, L2s, L2b);
 
     printRam();
     fclose(output);
@@ -130,6 +130,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
 
         // claculate the index of data in RAM from address
         int ramIndex = address / 8;
+        int ramOffset = address % 8;
 
         // calculate set index, block offset and tag for L1 and L2 cahce
         int L1_setIndex = (address >> b1) & ((1 << s1) - 1);
@@ -176,7 +177,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     L1I_counter[1]++;
                     fprintf(output, "\tPlace in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
                 }
-                fprintf(output,"\n");
+
                 break;
 
             case 'L':
@@ -211,7 +212,6 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     fprintf(output, "\tPlace in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
                 }
 
-                fprintf(output,"\n");
                 break;
 
             case 'S':
@@ -234,7 +234,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     dataSplit[i][2] = '\0';
                 }
 
-                storeRam(ramIndex, size, dataSplit);
+                storeRam(ramIndex,ramOffset, size, dataSplit);
 
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
@@ -260,7 +260,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     // L2 miss
                     L2_counter[1]++;
                 }
-                fprintf(output,"RAM\n\n");
+                fprintf(output,"RAM\n");
             break;    
 
             case 'M':
@@ -288,7 +288,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 L2State = load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
-                fprintf(output,"\tModify in L2, L1D, RAM\n\n");
+                fprintf(output,"\tModify in L2, L1D, RAM\n");
 
                 if (L1State && L2State) {
                     // L1D hit L2 hit
@@ -314,7 +314,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
-                storeRam(ramIndex, size, dataSplit);
+                storeRam(ramIndex,ramOffset, size, dataSplit);
 
                 if (L1State && L2State) {
                     // L1D hit L2 hit
@@ -360,6 +360,7 @@ unsigned char** readRam() {
     return ramData;
 }
 
+
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData) {
     //Check for hit
     for (int i = 0; i < c->associativity; i++) {
@@ -378,14 +379,18 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
             break;
         }
     }
+
+    //If no empty line, find the least recently used line using fifo
     if (lineIndex == -1) {
         int minTime = c->sets[setIndex].lines[0].time;
         for (int i = 0; i < c->associativity; i++) {
+            //check for the time
             if(c->sets[setIndex].lines[i].time < minTime){
                 minTime = c->sets[setIndex].lines[i].time;
                 lineIndex = i;
             }
         }
+        //Increment the counter for eviction
         if (strcmp(c->name, "L1D")==0){
             L1D_counter[2]++;
         }
@@ -397,6 +402,7 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
         }
     }
 
+    //Load data from ram and update cache
     c->sets[setIndex].lines[lineIndex].valid = 1;
     c->sets[setIndex].lines[lineIndex].tag = tag;
     c->sets[setIndex].lines[lineIndex].time = time;
@@ -407,9 +413,10 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
     return 0;
 }
 
-void storeRam(int ramIndex, int size, unsigned char** data) {
+//Store data to ram
+void storeRam(int ramIndex,int ramOffset, int size, unsigned char** data) {
     for (int i = 0; i < size; i++){
-        ramData[ramIndex][i] = strtol(data[i], NULL, 16);
+        ramData[ramIndex][i+ramOffset] = strtol(data[i], NULL, 16);
     }
 }
 
@@ -438,7 +445,7 @@ void printOutput() {
     printf("L1D-evictions:%d\n", L1D_counter[2]);
     printf("\t\tL2-hits:%d ", L2_counter[0]);
     printf("L2-misses:%d ", L2_counter[1]);
-    printf("L2-evictions:%d\n\n", L2_counter[2]);
+    printf("L2-evictions:%d\n", L2_counter[2]);
 
     FILE* output = fopen("output.txt", "r");
 
@@ -451,30 +458,6 @@ void printOutput() {
     fclose(output);
 }
 
-void printCache(cache* c) {
-    //Iterate through sets
-    for (int i = 0; i < c->setSize; i++) {
-        //Set
-        printf("Set %d\n", i);
-        cacheSet* set = &c->sets[i];
-        //Iterating through lines
-        for (int j = 0; j < c->associativity; j++) {
-            //Line
-            cacheLine* line = &set->lines[j];
-            printf("Line %d: ", j);
-
-            //Line attributes
-            printf("Valid: %d, ", line->valid);
-            printf("Tag: %d, ", line->tag);
-            printf("Time: %d, ", line->time);
-            printf("Data: ");
-            for (int k = 0; k < c->blockSize; k++) {
-                k == c->blockSize-1 ? printf("%02x", line->data[k]) : printf("%02x ", line->data[k]);
-            }
-            printf("\n");
-        }
-    }
-}
 
 void printRam() {
     FILE *ram = fopen("RAM_output.dat", "wb"); // open ram file
