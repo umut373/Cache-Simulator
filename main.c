@@ -32,15 +32,19 @@ typedef struct cache {
 } cache;
 
 cache constructCache(char* name, int s, int b, int e) {
+    //initalized the cache from the given parameters
     cache c = {name, 1<<s, 1<<b, 1<<e, NULL};
+    //allocate memory for the sets
     c.sets = malloc(sizeof(cacheSet) * c.setSize);
     for (int i = 0; i < c.setSize; i++) {
         c.sets[i].setId = i;
+        //allocate memory for the lines
         c.sets[i].lines = malloc(sizeof(cacheLine) * c.associativity);
         for (int j = 0; j < c.associativity; j++) {
             c.sets[i].lines[j].valid = 0;
             c.sets[i].lines[j].tag = 0;
             c.sets[i].lines[j].time = 0;
+            //allocate memory for the data
             c.sets[i].lines[j].data = malloc(sizeof(char) * c.blockSize);
         }
     }
@@ -54,6 +58,7 @@ long ramSize;
 FILE *output;
 int L1s, L1E, L1b, L2s, L2E, L2b;
 char* tracefile;
+int ramOffset;
 
 
 // hit - miss - evacuation
@@ -65,24 +70,34 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
 int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
-void storeRam(int ramIndex,int ramOffset ,int size, unsigned char** data);
+void storeRam(int ramIndex, int size, unsigned char** data);
 void printOutput();
 void printRam();
 void takeArguments(int argc, char *argv[]);
 
 int main(int argc, char *argv[]){
+    // take arguments from command line
     takeArguments(argc, argv);
 
+    // open output file
     output = fopen("output.txt", "w");
 
+    // construct caches
     L1I = constructCache("L1I",L1s, L1b, L1E);
     L1D = constructCache("L1D", L1s, L1b, L1E);
     L2 = constructCache("L2", L2s, L2b, L2E);
 
+    // get the traces' path
+    char path[80] = "";
+    char filename[50];
+    
+    strcat(path, tracefile);
     ramData = readRam();
 
-    readTrace(tracefile, L1s, L1b, L2s, L2b);
+    // read the trace file
+    readTrace(path, L1s, L1b, L2s, L2b);
 
+    // print the output
     printRam();
     fclose(output);
     printOutput();
@@ -118,6 +133,7 @@ void takeArguments(int argc, char *argv[]) {
     }
 }
 
+
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
     FILE *trace = fopen(filepath, "r"); // open trace file
 
@@ -130,8 +146,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
 
         // claculate the index of data in RAM from address
         int ramIndex = address / 8;
-        int ramOffset = address % 8;
-
+        ramOffset = address % 8;
         // calculate set index, block offset and tag for L1 and L2 cahce
         int L1_setIndex = (address >> b1) & ((1 << s1) - 1);
         int L1_blockOffset = address & ((1 << b1) - 1);
@@ -234,7 +249,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     dataSplit[i][2] = '\0';
                 }
 
-                storeRam(ramIndex,ramOffset, size, dataSplit);
+                storeRam(ramIndex, size, dataSplit);
 
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
@@ -314,7 +329,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
                 L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
-                storeRam(ramIndex,ramOffset, size, dataSplit);
+                storeRam(ramIndex, size, dataSplit);
 
                 if (L1State && L2State) {
                     // L1D hit L2 hit
@@ -344,15 +359,18 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         time++;
     }
 }
-
+// print cache
 unsigned char** readRam() {
     FILE *ram = fopen("RAM.dat", "rb"); // open ram file
 
+    //get ram file size
     fseek(ram, 0, SEEK_END);
     ramSize = ftell(ram);
     rewind(ram);
 
+    //create empty ram array
     unsigned char **ramData = malloc(sizeof(unsigned char) * ramSize);
+    //read ram data and insert to array
     for (int i = 0; i < ramSize/8; i++) {
         ramData[i] = malloc(sizeof(unsigned char) * 8);
         fread(ramData[i], sizeof(unsigned char), 8, ram);
@@ -414,8 +432,14 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
 }
 
 //Store data to ram
-void storeRam(int ramIndex,int ramOffset, int size, unsigned char** data) {
+void storeRam(int ramIndex, int size, unsigned char** data) {
     for (int i = 0; i < size; i++){
+        if (ramOffset+i >= 8)
+        {
+            ramIndex++;
+            ramOffset = 0;
+        }
+        
         ramData[ramIndex][i+ramOffset] = strtol(data[i], NULL, 16);
     }
 }
@@ -462,6 +486,7 @@ void printOutput() {
 void printRam() {
     FILE *ram = fopen("RAM_output.dat", "wb"); // open ram file
 
+    //write ram data to file
     for (int i = 0; i < ramSize/8; i++) {
         fwrite(ramData[i], sizeof(unsigned char), 8, ram);
     }
