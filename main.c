@@ -45,7 +45,7 @@ cache constructCache(char* name, int s, int b, int e) {
             c.sets[i].lines[j].valid = 0;
             c.sets[i].lines[j].tag = 0;
             c.sets[i].lines[j].time = 0;
-            c.sets[i].lines[j].data = malloc(sizeof(char) * c.blockSize);
+            c.sets[i].lines[j].data = malloc(sizeof(unsigned char) * c.blockSize);
         }
     }
     return c;
@@ -76,17 +76,17 @@ void printRam();
 
 int main(int argc, char *argv[]) {
     // take arguments from command line
-    //takeArguments(argc, argv);
+    takeArguments(argc, argv);
 
     output = fopen("output.txt", "w");
 
     // construct caches
-    L1I = constructCache("L1I", 2, 3, 2);
-    L1D = constructCache("L1D", 2, 3, 2);
-    L2 = constructCache("L2", 1, 5, 2);
+    L1I = constructCache("L1I",L1s, L1b, L1E);
+    L1D = constructCache("L1D", L1s, L1b, L1E);
+    L2 = constructCache("L2", L2s, L2b, L2E);
 
     ramData = readRam();
-    readTrace("traces/test_small.trace", 2, 3, 1, 5);
+    readTrace(tracefile, L1s, L1b, L2s, L2b);
 
     printRam();
     fclose(output);
@@ -132,6 +132,12 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int address;
         int size;
         fscanf(trace, "%x, %d", &address, &size);
+
+        // this part added for skiping large address
+        if (address >= ramSize) {
+            printf("Invalid address: %x\n", address);
+            exit(1);
+        }
 
         // claculate the index of data in RAM from address
         int ramIndex = address / 8;
@@ -391,6 +397,7 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
     //If no empty line, find the least recently used line using fifo
     if (lineIndex == -1) {
         int minTime = c->sets[setIndex].lines[0].time;
+        lineIndex = 0;
         for (int i = 0; i < c->associativity; i++) {
             //check for the time
             if(c->sets[setIndex].lines[i].time < minTime){
@@ -415,8 +422,14 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
     c->sets[setIndex].lines[lineIndex].tag = tag;
     c->sets[setIndex].lines[lineIndex].time = time;
     
+    int ramOffset = 0;
     for (int i = 0; i < c->blockSize; i++) {
-        c->sets[setIndex].lines[lineIndex].data[i] = ramData[ramIndex][i];
+        if (ramOffset >= 8) {
+            ramIndex++;
+            ramOffset = 0;
+        }
+        c->sets[setIndex].lines[lineIndex].data[i] = ramData[ramIndex][ramOffset];
+        ramOffset++;
     }
     return 0;
 }
