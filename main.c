@@ -44,6 +44,8 @@ cache L1I, L1D, L2;
 unsigned char** ramData;
 long ramSize;
 FILE *output;
+int L1s, L1E, L1b, L2s, L2E, L2b;
+char* tracefile;
 
 
 // hit - miss - evacuation
@@ -58,33 +60,68 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
 void storeRam(int ramIndex, int size, unsigned char** data);
 void printCache(cache* c);
 void printRam();
+void takeArguments(int argc, char *argv[]);
 
-int main(){
+int main(int argc, char *argv[]){
+    takeArguments(argc, argv);
+
+
     output = fopen("output.txt", "w");
 
-    L1I = constructCache("L1I",2,3,2);
-    L1D = constructCache("L1D",2,3,2);
-    L2 = constructCache("L2",1,5,2);
+    L1I = constructCache("L1I",L1s, L1b, L1E);
+    L1D = constructCache("L1D", L1s, L1b, L1E);
+    L2 = constructCache("L2", L2s, L2b, L2E);
 
 
     // TEST CODE
     char path[80] = "traces\\";
     char filename[50];
     
-    printf("Enter file name: ");
-    scanf("%s", filename);
-    strcat(path, filename);
+    //printf("Enter file name: ");
+    //scanf("%s", filename);
+    strcat(path, tracefile);
     ramData = readRam();
 
 
 
-    readTrace(path, 2, 3 ,1, 5);
-    printCache(&L1I);
-    
+    readTrace(path, L1s, L1b, L2s, L2b);
+    //printCache(&L1I);
+    //printCache(&L1D);
+    //printCache(&L2);
+
     printRam();
     fclose(output);
     
     return 0;
+}
+
+void takeArguments(int argc, char *argv[]) {
+    // Check if the number of arguments is correct
+    if (argc != 15) {
+        printf("Invalid number of arguments. Please provide all required arguments.\n");
+        exit(1);
+    }
+
+    for (int i = 1; i < argc; i +=2) {
+        if (strcmp(argv[i], "-L1s") == 0)
+            L1s = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-L1E") == 0)
+            L1E = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-L1b") == 0)
+            L1b = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-L2s") == 0)
+            L2s = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-L2E") == 0)
+            L2E = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-L2b") == 0)
+            L2b = atoi(argv[i + 1]);
+        else if (strcmp(argv[i], "-t") == 0)
+            tracefile = argv[i + 1];
+        else {
+            printf("Invalid argument: %s\n", argv[i]);
+            exit(1);
+        }
+    }
 }
 
 void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
