@@ -45,6 +45,12 @@ unsigned char** ramData;
 long ramSize;
 FILE *output;
 
+
+// hit - miss - evacuation
+int L1D_counter[3] = {0, 0, 0};
+int L1I_counter[3] = {0, 0, 0};
+int L2_counter[3] = {0, 0, 0};
+
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
@@ -117,19 +123,32 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
                 if (L1State && L2State) {
-                    /* code */
+                    // L2 hit L1I hit
+                    L2_counter[0]++;
+                    L1I_counter[0]++;
                 }
-                else if(L1State && !L2State)
+                else if(L1State && !L2State) {
+                    // L2 miss L1I hit
+                    L2_counter[1]++;
+                    L1I_counter[0]++;
                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
-                else if(!L1State && L2State)
+                }
+                else if(!L1State && L2State) {
+                    // L2 hit L1I miss
+                    L2_counter[0]++;
+                    L1I_counter[1]++;
                     fprintf(output, "Place in L1I set %d\n", L1_setIndex);
-                else
+                }
+                else {
+                    // L2 miss L1I miss
+                    L2_counter[1]++;
+                    L1I_counter[1]++;
                     fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
-                
+                }
                 fprintf(output,"\n");
                 break;
 
-            case 'D':
+            case 'L':
                 fprintf(output, "D %08x, %d\n", address, size);
 
                 L1State = load(&L1D, L1_setIndex, L1_tag, ramIndex, ramData);
@@ -138,14 +157,28 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                 L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
                 if (L1State && L2State) {
-                    /* code */
+                    // L2 hit L1D hit
+                    L2_counter[0]++;
+                    L1D_counter[0]++;
                 }
-                else if(L1State && !L2State)
+                else if(L1State && !L2State) {
+                    // L2 miss L1D hit
+                    L2_counter[1]++;
+                    L1D_counter[0]++;
                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
-                else if(!L1State && L2State)
+                }
+                else if(!L1State && L2State) {
+                    // L2 hit L1D miss
+                    L2_counter[0]++;
+                    L1D_counter[1]++;
                     fprintf(output, "Place in L1D set %d\n", L1_setIndex);
-                else
-                    fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex),
+                }
+                else {
+                    // L2 miss L1D miss
+                    L2_counter[1]++;
+                    L1D_counter[1]++;
+                    fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
+                }
 
                 fprintf(output,"\n");
                 break;
@@ -180,11 +213,22 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
 
                 fprintf(output,"Store in ");
 
-                if (L1State)
-                    fprintf(output,"L1D, ");
-                if (L2State)
-                    fprintf(output,"L2, ");
-                
+                if (L1State) {
+                    // L1D hit
+                    L1D_counter[0]++;
+                    fprintf(output, "L1D, ");
+                } else {
+                    // L1D miss
+                    L1D_counter[1]++;
+                }
+                if (L2State) {
+                    // L2 hit
+                    L2_counter[0]++;
+                    fprintf(output, "L2, ");
+                } else {
+                    // L2 miss
+                    L2_counter[1]++;
+                }
                 fprintf(output,"RAM\n\n");
             break;    
 
@@ -194,7 +238,7 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     char c = fgetc(trace);
                     if (c != ',' && c != ' ')
                         data[i] = c;
-                    else 
+                    else
                         i--;
                 }
                 data[size*2] = '\0';
@@ -207,6 +251,71 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     strncpy(dataSplit[i], &data[i*2], 2);
                     dataSplit[i][2] = '\0';
                 }
+
+                L1State=load(&L1D, L1_setIndex, L1_tag, ramIndex, ramData);
+                L1State ? fprintf(output, "L1D hit, ") : fprintf(output, "L1D miss, ");
+                L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
+                L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
+
+                if (L1State && L2State) {
+                    // L1D hit L2 hit
+                    L1D_counter[0]++;
+                    L2_counter[0]++;
+                    fprintf(output, "L1D, ");
+                }
+                else if(L1State && !L2State) {
+                    // L1D hit L2 miss
+                    L1D_counter[0]++;
+                    L2_counter[1]++;
+                    fprintf(output, "Place in L2 set %d\n", L2_setIndex);
+                }
+                else if(!L1State && L2State) {
+                    // L1D miss L2 hit
+                    L1D_counter[1]++;
+                    L2_counter[0]++;
+                    fprintf(output, "Place in L1D set %d\n", L1_setIndex);
+                }
+                else {
+                    // L1D miss L2 miss
+                    L1D_counter[1]++;
+                    L2_counter[1]++;
+                    fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
+                }
+
+                // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
+                L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
+                L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
+                L1State ? fprintf(output, "L1D hit, ") : fprintf(output, "L1D miss, ");
+                L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
+                storeRam(ramIndex, size, dataSplit);
+
+                fprintf(output,"Store in ");
+
+                if (L1State && L2State) {
+                    // L1D hit L2 hit
+                    L1D_counter[0]++;
+                    L2_counter[0]++;
+                    fprintf(output, "L1D, L2, ");
+                }
+                else if(L1State && !L2State) {
+                    // L1D hit L2 miss
+                    L1D_counter[0]++;
+                    L2_counter[1]++;
+                    fprintf(output, "L1D, ");
+                }
+                else if(!L1State && L2State) {
+                    // L1D miss L2 hit
+                    L1D_counter[1]++;
+                    L2_counter[0]++;
+                    fprintf(output, "L2, ");
+                }
+                else {
+                    // L1D miss L2 miss
+                    L1D_counter[1]++;
+                    L2_counter[1]++;
+                }
+
+                fprintf(output,"RAM\n\n");
                 break;
         }
         // read next instruction
@@ -310,7 +419,7 @@ void printCache(cache* c) {
             printf("Time: %d, ", line->time);
             printf("Data: ");
             for (int k = 0; k < c->blockSize; k++) {
-                printf("%02x", line->data[k]);
+                k == c->blockSize-1 ? printf("%02x", line->data[k]) : printf("%02x ", line->data[k]);
             }
             printf("\n");
         }
