@@ -2,19 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct cacheLine{
+typedef struct cacheLine {
     int valid;
     long long tag;
     int time;
     unsigned char* data;
 } cacheLine;
 
-typedef struct cacheSet{
+typedef struct cacheSet {
     cacheLine* lines;
     int setId;
 } cacheSet;
 
-typedef struct cache{
+typedef struct cache {
     char* name;
     int setSize;
     int blockSize;
@@ -24,15 +24,12 @@ typedef struct cache{
 } cache;
 
 cache constructCache(char* name,int s, int b, int e){
-
     cache c = {name,1<<s,1<<b,1<<e,NULL};
     c.sets = malloc(sizeof(cacheSet)*c.setSize);
-    for (int i = 0; i < c.setSize; i++)
-    {
+    for (int i = 0; i < c.setSize; i++) {
         c.sets[i].setId = i;
         c.sets[i].lines = malloc(sizeof(cacheLine)*c.associativity);
-        for (int j = 0; j < c.associativity; j++)
-        {
+        for (int j = 0; j < c.associativity; j++) {
             c.sets[i].lines[j].valid = 0;
             c.sets[i].lines[j].tag = 0;
             c.sets[i].lines[j].time = 0;
@@ -46,21 +43,25 @@ int time = 0;
 cache L1I, L1D, L2;
 unsigned char **ramData;
 
+FILE *output;
+
 void readTrace(char* filepath, int s1, int b1, int s2, int b2);
 unsigned char** readRam();
 int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData);
-int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char* data);
-// void storeRam(int blockOffset, int ramIndex, int size, unsigned char* data);
+int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data);
+// void storeRam(int blockOffset, int ramIndex, int size, unsigned char** data);
 
 int main(){
+    output = fopen("output.txt", "w");
+
     L1I = constructCache("L1I",2,3,2);
     L1D = constructCache("L1D",2,3,2);
     L2 = constructCache("L2",1,5,2);
 
 
     // TEST CODE
-    char path[30] = "traces\\";
-    char filename[20];
+    char path[80] = "traces\\";
+    char filename[50];
     
     printf("Enter file name: ");
     scanf("%s", filename);
@@ -69,6 +70,7 @@ int main(){
 
     readTrace(path, 2, 3 ,1, 5);
     
+    fclose(output);
     return 0;
 }
 
@@ -96,62 +98,76 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         int L2_tag = address >> (s2 + b2);
 
         // for instruction S and M
-        unsigned char* data[size*2 + 1];
+        char* data;
         unsigned char* dataSplit[size];
 
         switch (instr) {
             case 'I':
-                if(load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData)) {
-                    printf("L1I hit,");
+                fprintf(output, "I %08x, %d\n", address, size);
+
+                if (load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData)) {
+                    fprintf(output, "L1I hit, ");
                 }
                 else {
-                    printf("L1I miss,");
+                    fprintf(output, "L1I miss, ");
                     if(load(&L2, L2_setIndex, L2_tag, ramIndex, ramData)){
-                        printf("L2 hit\n");
-                        printf("Place in L1I set %d\n", L1_setIndex);
+                        fprintf(output, "L2 hit\n");
+                        fprintf(output, "Place in L1I set %d\n", L1_setIndex);
                     }
                     else {
-                        printf("L2 miss\n");
-                        printf("Place in L2 set %d,L1I set %d\n", L2_setIndex, L1_setIndex);
+                        fprintf(output, "L2 miss\n");
+                        fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
                     }
                 }
                 break;
 
-                case 'D':
+            case 'D':
+                fprintf(output, "D %08x, %d\n", address, size);
+
                 if (load(&L1D, L1_setIndex, L1_tag,ramIndex, ramData)){
-                    printf("L1D hit,");
+                    fprintf(output, "L1D hit, ");
                 }
                 else {
-                    printf("L1D miss,");
+                    fprintf(output, "L1D miss, ");
                     if (load(&L2, L2_setIndex, L2_tag, ramIndex, ramData)) {
-                        printf("L2 hit\n");
-                        printf("Place in L1D set %d\n", L1_setIndex);
+                        fprintf(output, "L2 hit\n");
+                        fprintf(output, "Place in L1D set %d\n", L1_setIndex);
                     }
                     else {
-                        printf("L2 miss\n");
-                        printf("Place in L2 set %d,L1D set %d\n", L2_setIndex, L1_setIndex);
+                        fprintf(output, "L2 miss\n");
+                        fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
                     }
                 }
                 break;
 
             case 'S':
-                // read data value and split it into bytes
-                fscanf(trace, "%s", &data);
+                fgets(data, 2, trace); // skip ', '
+                fscanf(trace, "%s", data);
+
+                fprintf(output, "S %08x, %d, %s\n", address, size, data);
+                
+                // split data value into bytes
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
-                    strncpy(dataSplit[i], data + i*2, 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 3);
+                    strncpy(dataSplit[i], &data[i*2], 2);
+                    dataSplit[i][2] = '\0';
                 }
-                // storeRam(L2_blockOffset, ramIndex, size, data);
-                storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, data);
-                storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, data);
+                // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
+                storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
+                storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
                 break;
 
             case 'M':
-                // read data value and split it into bytes
-                fscanf(trace, "%s", &data);
+                fgets(data, 2, trace); // skip ', '
+                fscanf(trace, "%s", data);
+
+                fprintf(output, "M %08x, %d, %s\n", address, size, data);
+
+                // split data value into bytes
                 for (int i = 0; i < size; i++) {
-                    dataSplit[i] = malloc(sizeof(unsigned char) * 2);
-                    strncpy(dataSplit[i], data + i*2, 2);
+                    dataSplit[i] = malloc(sizeof(unsigned char) * 3);
+                    strncpy(dataSplit[i], &data[i*2], 2);
+                    dataSplit[i][2] = '\0';
                 }
                 break;
         }
@@ -219,12 +235,13 @@ int load(cache* c, int setIndex, int tag, int ramIndex, unsigned char** ramData)
 }
 
 /* SORUNLU
- * void storeRam(int blockOffset, int ramIndex, int size, unsigned char* data) {
+ * void storeRam(int blockOffset, int ramIndex, int size, unsigned char** data) {
     for (int i = 0; i < size; i++){
-        ramData[ramIndex][blockOffset+i] = data[i];
+        ramData[ramIndex][blockOffset+i] = strtol(data[j], NULL, 16);
     }
 }*/
-int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char* data){
+
+int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, int size, unsigned char** data){
     //Check for hit
     int hit = 0;
     for (int i = 0; i < c->associativity; i++){
@@ -232,7 +249,7 @@ int storeCache(cache* c, int setIndex, int tag, int blockOffset, int ramIndex, i
             hit = 1;
             //Hit, print data to ram
             for (int j = 0; j < size; j++){
-                c->sets[setIndex].lines[i].data[blockOffset+j] = data[j];
+                c->sets[setIndex].lines[i].data[blockOffset+j] = strtol(data[j], NULL, 16);
             }
             break;
 
