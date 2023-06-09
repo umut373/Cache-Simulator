@@ -1,1 +1,1 @@
-            //Line time
+    printf("L1I_hits: %d", L1I_hits);
