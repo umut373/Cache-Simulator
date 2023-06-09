@@ -104,40 +104,46 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
         switch (instr) {
             case 'I':
                 fprintf(output, "I %08x, %d\n", address, size);
+                    
+                int L1State=load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData);
+                L1State ? fprintf(output, "L1I hit, ") : fprintf(output, "L1I miss, ");
+                int L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
+                L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
 
-                if (load(&L1I, L1_setIndex, L1_tag, ramIndex, ramData)) {
-                    fprintf(output, "L1I hit, ");
-                }
-                else {
-                    fprintf(output, "L1I miss, ");
-                    if(load(&L2, L2_setIndex, L2_tag, ramIndex, ramData)){
-                        fprintf(output, "L2 hit\n");
-                        fprintf(output, "Place in L1I set %d\n", L1_setIndex);
-                    }
-                    else {
-                        fprintf(output, "L2 miss\n");
-                        fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
-                    }
-                }
+                if (L1State && L2State)
+                {
+                    /* code */
+                }else if(L1State && !L2State)
+                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
+                else if(!L1State && L2State)
+                     fprintf(output, "Place in L1I set %d\n", L1_setIndex);
+                else
+                     fprintf(output, "Place in L2 set %d, L1I set %d\n", L2_setIndex, L1_setIndex);
+                
+                
+                      fprintf(output,"\n");
+                
                 break;
 
             case 'D':
                 fprintf(output, "D %08x, %d\n", address, size);
 
-                if (load(&L1D, L1_setIndex, L1_tag,ramIndex, ramData)){
-                    fprintf(output, "L1D hit, ");
-                }
-                else {
-                    fprintf(output, "L1D miss, ");
-                    if (load(&L2, L2_setIndex, L2_tag, ramIndex, ramData)) {
-                        fprintf(output, "L2 hit\n");
-                        fprintf(output, "Place in L1D set %d\n", L1_setIndex);
-                    }
-                    else {
-                        fprintf(output, "L2 miss\n");
-                        fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
-                    }
-                }
+                L1State=load(&L1D, L1_setIndex, L1_tag, ramIndex, ramData);
+                L1State ? fprintf(output, "L1D hit, ") : fprintf(output, "L1D miss, ");
+                L2State=load(&L2, L2_setIndex, L2_tag, ramIndex, ramData);
+                L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
+
+                if (L1State && L2State)
+                {
+                    /* code */
+                }else if(L1State && !L2State)
+                     fprintf(output, "Place in L2 set %d\n", L2_setIndex);
+                else if(!L1State && L2State)
+                     fprintf(output, "Place in L1D set %d\n", L1_setIndex);
+                else
+                     fprintf(output, "Place in L2 set %d, L1D set %d\n", L2_setIndex, L1_setIndex);
+
+                     fprintf(output,"\n");
                 break;
 
             case 'S':
@@ -153,9 +159,21 @@ void readTrace(char* filepath, int s1, int b1, int s2, int b2) {
                     dataSplit[i][2] = '\0';
                 }
                 // storeRam(L2_blockOffset, ramIndex, size, dataSplit);
-                storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
-                storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
-                break;
+                L1State = storeCache(&L1D, L1_setIndex, L1_tag, L1_blockOffset, ramIndex, size, dataSplit);
+                L2State = storeCache(&L2, L2_setIndex, L2_tag, L2_blockOffset, ramIndex, size, dataSplit);
+
+                L1State ? fprintf(output, "L1D hit, ") : fprintf(output, "L1D miss, ");
+                L2State ? fprintf(output, "L2 hit\n") : fprintf(output, "L2 miss\n");
+
+                fprintf(output,"Store in ");
+
+                if (L1State)
+                    fprintf(output,"L1D, ");
+                if (L2State)
+                    fprintf(output,"L2, ");
+                
+                fprintf(output,"RAM\n\n");
+                
 
             case 'M':
                 fgets(data, 2, trace); // skip ', '
